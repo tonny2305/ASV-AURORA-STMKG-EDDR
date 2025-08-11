@@ -14,6 +14,14 @@ export type Sensors = {
 export type NodeData = {
   gps_status: string
   sensors: Sensors
+  gps?: {
+    course_deg?: number
+    lat?: number
+    lng?: number
+    lon?: number
+    speed_kmh?: number
+    speed_knots?: number
+  }
   timestamp: string
   uptime_s: number | null
 }

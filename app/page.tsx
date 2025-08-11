@@ -2,7 +2,6 @@ import { HeaderBrand } from "@/components/header-brand"
 import { MapTrack } from "@/components/map-track"
 import { ShipScene } from "@/components/ship-scene"
 import { SpeedHeadingCard } from "@/components/speed-heading-card"
-import { WaveCard } from "@/components/wave-card"
 import { EnvGauges } from "@/components/env-gauges"
 import { DataBadges } from "@/components/data-badges"
 import { Sparklines } from "@/components/sparklines"
@@ -42,9 +41,6 @@ export default function Page() {
               </div>
               <div className="row-span-1 min-h-0 rounded-xl border border-black dark:border-[var(--glass-border)] bg-white dark:bg-[var(--glass-bg)] backdrop-blur-xl">
                 <SpeedHeadingCard />
-              </div>
-              <div className="row-span-1 min-h-0 rounded-xl border border-black dark:border-[var(--glass-border)] bg-white dark:bg-[var(--glass-bg)] backdrop-blur-xl">
-                <WaveCard />
               </div>
               <div className="row-span-1 min-h-0 rounded-xl border border-black dark:border-[var(--glass-border)] bg-white dark:bg-[var(--glass-bg)] backdrop-blur-xl">
                 <EnvGauges />

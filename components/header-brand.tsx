@@ -16,8 +16,17 @@ export function HeaderBrand() {
     else document.documentElement.classList.remove("dark")
   }, [dark])
 
-  const absolute = lastUpdate ? formatAbsoluteWIB(lastUpdate) : "—"
-  const relative = lastUpdate ? formatRelative(lastUpdate) : "—"
+  const { feed } = useTelemetry();
+  // Ambil timestamp mentah dari data terbaru
+  let rawTimestamp = feed?.latest?.timestamp || "—";
+  // Format agar lebih mudah dibaca: "10/08/2025:18/48/29" => "10-08-2025 18:48:29"
+  if (typeof rawTimestamp === "string" && rawTimestamp.includes(":")) {
+    const [date, time] = rawTimestamp.split(":");
+    if (date && time) {
+      rawTimestamp = `${date.replaceAll("/", "-")} ${time.replaceAll("/", ":")}`;
+    }
+  }
+  const relative = lastUpdate ? formatRelative(lastUpdate) : "—";
 
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-black dark:border-border bg-white/80 dark:bg-background/70 px-3 py-2 backdrop-blur-xl md:px-4">
@@ -26,7 +35,7 @@ export function HeaderBrand() {
         <div className="flex flex-col">
           <h1 className="text-base font-semibold tracking-tight md:text-lg">ASV Monitoring — AURORA STMKG</h1>
           <p className="text-xs text-black dark:text-muted-foreground">
-            Last Update: {absolute} · {relative}
+            Last Update: {rawTimestamp}
           </p>
         </div>
       </div>

@@ -1,8 +1,10 @@
 "use client"
+"use client"
 
 import { Line, LineChart, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 import { useMemo } from "react"
 import { useTelemetry } from "./telemetry-provider"
+import { formatRawTimestamp } from "./sparklines-format"
 
 export function Sparklines() {
   const { feed } = useTelemetry()
@@ -50,14 +52,40 @@ function VSpark({
           <LineChart data={cleaned}>
             <XAxis dataKey="t" hide />
             <YAxis hide domain={["dataMin", "dataMax"]} />
-            <Tooltip cursor={false} contentStyle={{ display: "none" }} />
+            <Tooltip
+              cursor={{ stroke: "#8884d8", strokeWidth: 1 }}
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const value = payload[0].value;
+                  // Cek dark mode dari document.documentElement.classList
+                  const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
+                  return (
+                    <div
+                      style={{
+                        background: isDark ? "#222" : "#fff",
+                        color: isDark ? "#eee" : "#222",
+                        border: `1px solid ${isDark ? '#444' : '#ccc'}`,
+                        padding: 8,
+                        borderRadius: 6,
+                        fontSize: 12,
+                        boxShadow: isDark ? "0 2px 8px #0006" : "0 2px 8px #ccc6"
+                      }}
+                    >
+                      <div><b>Value:</b> {value}</div>
+                      <div><b>Timestamp:</b> {formatRawTimestamp(label)}</div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
             <Line
-              type="monotone"
+              type="basis"
               dataKey={dataKey}
               stroke={colorDark}
               strokeWidth={2}
               dot={false}
-              isAnimationActive={false}
+              isAnimationActive={true}
               className="dark:stroke-[hsl(170_80%_55%)]"
             />
           </LineChart>

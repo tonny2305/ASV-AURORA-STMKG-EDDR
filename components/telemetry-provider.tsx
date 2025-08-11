@@ -66,8 +66,8 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
           console.log("📊 Processing entries:", entries.length)
           const latestNode = entries
             .map(([k, v]) => ({ k, t: v?.timestamp }))
-            .filter((x) => typeof x.t === "string")
-            .map((x) => ({ k: x.k, d: parseTimestamp(x.t!) }))
+            .filter((x) => typeof x.t === "string" || typeof x.t === "number")
+            .map((x) => ({ k: x.k, d: parseTimestamp(String(x.t)) }))
             .sort((a, b) => a.d.getTime() - b.d.getTime())
             .pop()
           if (latestNode) {

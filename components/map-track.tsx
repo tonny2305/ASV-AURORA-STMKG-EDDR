@@ -14,23 +14,37 @@ export function MapTrack() {
   const coords = useMemo(() => {
     const pts = (feed?.ordered ?? [])
       .map((n) => {
-        const lat = n.data?.sensors?.lat
-        const lon = n.data?.sensors?.lon
-        const ok = typeof lat === "number" && typeof lon === "number" && !Number.isNaN(lat) && !Number.isNaN(lon)
-        return ok ? ([lat, lon] as [number, number]) : null
+        let lat = n.data?.sensors?.lat;
+        let lon = n.data?.sensors?.lon;
+        // Jika tidak ada di sensors, ambil dari gps
+        if ((typeof lat !== "number" || Number.isNaN(lat)) && n.data?.gps) {
+          lat = n.data.gps.lat;
+        }
+        if ((typeof lon !== "number" || Number.isNaN(lon)) && n.data?.gps) {
+          lon = n.data.gps.lng ?? n.data.gps.lon;
+        }
+        const ok = typeof lat === "number" && typeof lon === "number" && !Number.isNaN(lat) && !Number.isNaN(lon);
+        return ok ? ([lat, lon] as [number, number]) : null;
       })
-      .filter(Boolean) as [number, number][]
-    return pts
-  }, [feed])
+      .filter(Boolean) as [number, number][];
+    return pts;
+  }, [feed]);
 
-  const latest = feed?.latest
-  const gpsStatus = latest?.gps_status ?? "unknown"
-  const hasFix = gpsStatus === "valid" || gpsStatus === "fix" || gpsStatus === "3d" || gpsStatus === "2d"
-
+  const latest = feed?.latest;
+  let latestLat = latest?.sensors?.lat;
+  let latestLon = latest?.sensors?.lon;
+  if ((typeof latestLat !== "number" || Number.isNaN(latestLat)) && latest?.gps) {
+    latestLat = latest.gps.lat;
+  }
+  if ((typeof latestLon !== "number" || Number.isNaN(latestLon)) && latest?.gps) {
+    latestLon = latest.gps.lng ?? latest.gps.lon;
+  }
   const latestPoint =
-    typeof latest?.sensors?.lat === "number" && typeof latest?.sensors?.lon === "number"
-      ? ([latest.sensors.lat, latest.sensors.lon] as [number, number])
-      : null
+    typeof latestLat === "number" && typeof latestLon === "number"
+      ? ([latestLat, latestLon] as [number, number])
+      : null;
+  // Map tetap tampil jika koordinat valid, meskipun gps_status bukan 'valid', 'fix', '3d', atau '2d'
+  const hasFix = latestPoint !== null;
 
   return (
     <div className="relative h-full min-h-[320px] w-full rounded-xl">
