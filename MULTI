@@ -1,0 +1,457 @@
+// app/page.tsx
+import { HeaderBrand } from "@/components/header-brand"
+import { MapTrack } from "@/components/map-track"
+import { ShipScene } from "@/components/ship-scene"
+import { SpeedHeadingCard } from "@/components/speed-heading-card"
+import { WaveCard } from "@/components/wave-card"
+import { EnvGauges } from "@/components/env-gauges"
+import { DataBadges } from "@/components/data-badges"
+import { Sparklines } from "@/components/sparklines"
+import { TelemetryProvider } from "@/components/telemetry-provider"
+
+export default function Page() {
+  return (
+    <div
+      className="h-[100svh] w-full overflow-hidden bg-background text-foreground"
+      style={{
+        ["--accent-cyan" as any]: "hsl(185 85% 60%)",
+        ["--accent-teal" as any]: "hsl(170 80% 55%)",
+        ["--accent-purple" as any]: "hsl(265 90% 70%)",
+        ["--glass-bg" as any]: "hsl(240 10% 10% / 0.5)",
+        ["--glass-border" as any]: "hsl(240 10% 20% / 0.35)",
+      }}
+    >
+      <TelemetryProvider>
+        <div className="grid h-full w-full grid-rows-[auto_1fr]">
+          <HeaderBrand />
+          {/* Three columns: left Trends, center Map, right Parameters */}
+          <main className="grid grid-cols-12 gap-3 px-3 pb-3 pt-0 md:gap-4 md:px-4">
+            {/* LEFT: Trends (full height) */}
+            <section
+              className="col-span-12 md:col-span-3 min-h-0 min-w-0 rounded-xl border bg-[var(--glass-bg)] backdrop-blur-xl"
+              style={{ borderColor: "var(--glass-border)" }}
+            >
+              <Sparklines />
+            </section>
+
+            {/* CENTER: Map (compact, centered) */}
+            <section
+              className="col-span-12 md:col-span-5 min-h-0 rounded-xl border bg-[var(--glass-bg)] backdrop-blur-xl"
+              style={{ borderColor: "var(--glass-border)" }}
+            >
+              <MapTrack />
+            </section>
+
+            {/* RIGHT: Parameters (grid rows) */}
+            <section className="col-span-12 md:col-span-4 grid h-full grid-rows-6 gap-3 md:gap-4">
+              <div
+                className="row-span-2 min-h-0 rounded-xl border bg-[var(--glass-bg)] backdrop-blur-xl"
+                style={{ borderColor: "var(--glass-border)" }}
+              >
+                <ShipScene />
+              </div>
+              <div
+                className="row-span-1 min-h-0 rounded-xl border bg-[var(--glass-bg)] backdrop-blur-xl"
+                style={{ borderColor: "var(--glass-border)" }}
+              >
+                <SpeedHeadingCard />
+              </div>
+              <div
+                className="row-span-1 min-h-0 rounded-xl border bg-[var(--glass-bg)] backdrop-blur-xl"
+                style={{ borderColor: "var(--glass-border)" }}
+              >
+                <WaveCard />
+              </div>
+              <div
+                className="row-span-1 min-h-0 rounded-xl border bg-[var(--glass-bg)] backdrop-blur-xl"
+                style={{ borderColor: "var(--glass-border)" }}
+              >
+                <EnvGauges />
+              </div>
+              <div
+                className="row-span-1 min-h-0 rounded-xl border bg-[var(--glass-bg)] backdrop-blur-xl"
+                style={{ borderColor: "var(--glass-border)" }}
+              >
+                <DataBadges />
+              </div>
+            </section>
+          </main>
+        </div>
+      </TelemetryProvider>
+    </div>
+  )
+}
+
+// components/map-track.tsx
+"use client"
+
+import dynamic from "next/dynamic"
+import { useMemo, useState } from "react"
+import { useTelemetry } from "./telemetry-provider"
+import { Compass, MapIcon } from 'lucide-react'
+
+const LazyLeaflet = dynamic(() => import("./map-track.leaflet"), { ssr: false })
+
+export function MapTrack() {
+  const { feed } = useTelemetry()
+  const [ready, setReady] = useState(false)
+
+  const coords = useMemo(() => {
+    const pts = (feed?.ordered ?? [])
+      .map((n) => {
+        const lat = n.data?.sensors?.lat
+        const lon = n.data?.sensors?.lon
+        const ok = typeof lat === "number" && typeof lon === "number" && !Number.isNaN(lat) && !Number.isNaN(lon)
+        return ok ? ([lat, lon] as [number, number]) : null
+      })
+      .filter(Boolean) as [number, number][]
+    return pts
+  }, [feed])
+
+  const latest = feed?.latest
+  const gpsStatus = latest?.gps_status ?? "unknown"
+  const hasFix = gpsStatus === "valid" || gpsStatus === "fix" || gpsStatus === "3d" || gpsStatus === "2d"
+
+  const latestPoint =
+    typeof latest?.sensors?.lat === "number" && typeof latest?.sensors?.lon === "number"
+      ? ([latest.sensors.lat, latest.sensors.lon] as [number, number])
+      : null
+
+  return (
+    <div className="relative h-full min-h-[320px] w-full rounded-xl">
+      <div className="absolute right-3 top-3 z-[400] flex items-center gap-2 rounded-xl border bg-background/70 px-2 py-1 text-xs backdrop-blur-xl">
+        <MapIcon className="h-4 w-4" />
+        <span className="text-muted-foreground">Leaflet</span>
+        <span className="mx-1 opacity-50">•</span>
+        <Compass className="h-4 w-4" />
+        <span className="text-muted-foreground">{hasFix ? "GPS fix" : "GPS invalid"}</span>
+      </div>
+
+      {coords.length > 0 && latestPoint && hasFix ? (
+        <LazyLeaflet coords={coords} latest={latestPoint} onReady={() => setReady(true)} />
+      ) : (
+        <div className="flex h-full min-h-[320px] w-full items-center justify-center rounded-xl border">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">Lokasi tidak tersedia</p>
+            <p className="text-xs text-muted-foreground/80">
+              GPS invalid atau koordinat tidak ada. Menampilkan fallback.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// components/env-gauges.tsx
+"use client";
+
+import type React from "react";
+import { Thermometer, Mountain, CloudDrizzle } from 'lucide-react';
+import { useTelemetry } from "./telemetry-provider";
+import { clamp } from "@/lib/math";
+
+export function EnvGauges() {
+  const { feed } = useTelemetry();
+  const s = feed?.latest?.sensors;
+
+  const temp = clamp(s?.temp_c ?? 0, -20, 60);
+  const pressure = clamp(s?.pressure_hpa ?? 800, 800, 1100);
+  const alt = clamp(s?.alt_m ?? 0, -100, 5000);
+
+  return (
+    <div className="h-full p-3">
+      <div className="mb-2 text-sm font-medium">Environment</div>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+        <Gauge
+          icon={<Thermometer className="h-4 w-4 text-[var(--accent-purple)]" />}
+          label="Temp (°C)"
+          value={temp}
+          min={-20}
+          max={60}
+          color="hsl(265 90% 70%)"
+        />
+        <Gauge
+          icon={<CloudDrizzle className="h-4 w-4 text-[var(--accent-cyan)]" />}
+          label="Pressure (hPa)"
+          value={pressure}
+          min={800}
+          max={1100}
+          color="hsl(185 85% 60%)"
+        />
+        <Gauge
+          icon={<Mountain className="h-4 w-4 text-[var(--accent-teal)]" />}
+          label="Altitude (m)"
+          value={alt}
+          min={-100}
+          max={5000}
+          color="hsl(170 80% 55%)"
+        />
+      </div>
+    </div>
+  );
+}
+
+function Gauge({
+  icon,
+  label,
+  value,
+  min,
+  max,
+  color,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: number
+  min: number
+  max: number
+  color: string
+}) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
+  return (
+    <div className="min-w-0 rounded-lg border p-3" role="group" aria-label={`${label} gauge`}>
+      <div className="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2">
+          {icon}
+          <span className="truncate">{label}</span>
+        </div>
+        <span className="shrink-0 tabular-nums text-foreground text-[13px]">{value.toFixed(1)}</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-foreground/10">
+        <div
+          className="h-2 rounded-full transition-[width] duration-300 ease-out"
+          style={{ width: `${pct}%`, background: color, boxShadow: `0 0 16px ${color}40` }}
+          aria-valuemin={min}
+          aria-valuemax={max}
+          aria-valuenow={value}
+          role="progressbar"
+        />
+      </div>
+    </div>
+  )
+}
+
+// components/speed-heading-card.tsx
+"use client"
+
+import { motion, useReducedMotion } from "framer-motion"
+import { Gauge, Compass } from 'lucide-react'
+import { useTelemetry } from "./telemetry-provider"
+import { clamp } from "@/lib/math"
+
+export function SpeedHeadingCard() {
+  const { feed } = useTelemetry()
+  const latest = feed?.latest
+  const reduce = useReducedMotion()
+
+  const speed = latest?.sensors?.speed_kn
+  const hasSpeed = typeof speed === "number" && !Number.isNaN(speed)
+  const speedClamped = clamp(speed ?? 0, 0, 60)
+
+  const heading = clamp(latest?.sensors?.heading_deg ?? 0, 0, 359)
+
+  return (
+    <div className="h-full p-3">
+      <div className="mb-2 grid grid-cols-2 gap-2">
+        <div className="min-w-0 rounded-lg border p-3">
+          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+            <Gauge className="h-4 w-4" />
+            <span className="truncate">Speed (kn)</span>
+          </div>
+          <div className="flex items-end justify-between gap-2">
+            <div className="text-2xl font-semibold tabular-nums">{hasSpeed ? speedClamped.toFixed(1) : "N/A"}</div>
+            <div className="relative h-8 w-8 shrink-0">
+              <motion.div
+                className="absolute inset-0 rounded-full border border-foreground/20"
+                animate={reduce || !hasSpeed ? { rotate: 0 } : { rotate: speedClamped * 6 }}
+                transition={{ type: "spring", stiffness: 60, damping: 16 }}
+                aria-label="Indikator speed"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="min-w-0 rounded-lg border p-3">
+          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+            <Compass className="h-4 w-4" />
+            <span className="truncate">Heading (°)</span>
+          </div>
+          <div className="flex items-end justify-between gap-2">
+            <div className="text-2xl font-semibold tabular-nums">{heading.toFixed(0)}</div>
+            <div className="relative h-8 w-8 shrink-0">
+              <motion.div
+                className="absolute left-1/2 top-1/2 h-4 w-[2px] -translate-x-1/2 -translate-y-[calc(50%+6px)] rounded-full bg-[var(--accent-cyan)]"
+                style={{ transformOrigin: "center 16px" }}
+                animate={reduce ? { rotate: 0 } : { rotate: heading }}
+                transition={{ type: "spring", stiffness: 60, damping: 16 }}
+                aria-label="Kompas digital"
+              />
+              <div className="absolute inset-0 rounded-full border border-foreground/20" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// components/data-badges.tsx
+"use client"
+
+import type React from "react"
+import { useTelemetry } from "./telemetry-provider"
+import { Satellite, Timer, ShieldAlert } from 'lucide-react'
+
+export function DataBadges() {
+  const { feed } = useTelemetry()
+  const latest = feed?.latest
+
+  const gps = (latest?.gps_status ?? "unknown").toString()
+  const uptime = latest?.uptime_s
+  const quality = gps === "valid" || gps === "fix" ? "Good" : gps === "invalid" ? "Poor" : "Unknown"
+
+  return (
+    <div className="flex h-full flex-col p-3">
+      <div className="mb-2 text-sm font-medium">Status</div>
+      <div className="grid flex-1 grid-rows-3 gap-3">
+        <BadgeLine
+          icon={<Satellite className="h-4 w-4" />}
+          label="GPS"
+          value={gps}
+          variant={gps === "invalid" ? "warn" : "ok"}
+        />
+        <BadgeLine
+          icon={<Timer className="h-4 w-4" />}
+          label="Uptime"
+          value={typeof uptime === "number" ? formatSeconds(uptime) : "—"}
+          variant="neutral"
+        />
+        <BadgeLine
+          icon={<ShieldAlert className="h-4 w-4" />}
+          label="Data Quality"
+          value={quality}
+          variant={quality === "Good" ? "ok" : quality === "Poor" ? "warn" : "neutral"}
+        />
+      </div>
+    </div>
+  )
+}
+
+function BadgeLine({
+  icon,
+  label,
+  value,
+  variant,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  variant: "ok" | "warn" | "neutral"
+}) {
+  const color =
+    variant === "ok"
+      ? "text-emerald-300 border-emerald-500/40 shadow-[0_0_16px_hsl(160_80%_55%_/_0.15)]"
+      : variant === "warn"
+        ? "text-amber-300 border-amber-500/40 shadow-[0_0_16px_hsl(40_90%_60%_/_0.15)]"
+        : "text-muted-foreground border-foreground/20"
+  return (
+    <div className={`min-w-0 flex items-center justify-between rounded-lg border bg-background/50 px-3 py-2 ${color}`}>
+      <div className="flex min-w-0 items-center gap-2 text-xs">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="shrink-0 text-xs tabular-nums">{value}</div>
+    </div>
+  )
+}
+
+function formatSeconds(s: number) {
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = Math.floor(s % 60)
+  if (h > 0) return `${h}h ${m}m ${sec}s`
+  if (m > 0) return `${m}m ${sec}s`
+  return `${sec}s`
+}
+
+// components/wave-card.tsx
+"use client";
+
+import React from "react";
+import { Metric } from "@/components";
+
+export function WaveCard() {
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      <Metric label="Wave Height" value={1.5} />
+      <Metric label="Wave Period" value={5.2} />
+    </div>
+  );
+}
+
+function Metric({ label, value, precision = 2 }: { label: string; value: number; precision?: number }) {
+  return (
+    <div className="rounded-lg border p-3 min-w-0">
+      <div className="text-xs text-muted-foreground truncate">{label}</div>
+      <div className="mt-1 text-xl font-semibold tabular-nums">{value.toFixed(precision)}</div>
+    </div>
+  );
+}
+
+// components/sparklines.tsx
+"use client"
+
+import { Line, LineChart, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
+import { useMemo } from "react"
+import { useTelemetry } from "./telemetry-provider"
+
+export function Sparklines() {
+  const { feed } = useTelemetry()
+  const data = useMemo(() => {
+    return (feed?.ordered ?? []).map((n) => ({
+      t: n.data.timestamp,
+      temp: typeof n.data.sensors?.temp_c === "number" ? n.data.sensors.temp_c : null,
+      press: typeof n.data.sensors?.pressure_hpa === "number" ? n.data.sensors.pressure_hpa : null,
+      wave: typeof n.data.sensors?.wave_height === "number" ? n.data.sensors.wave_height : null,
+    }))
+  }, [feed])
+
+  return (
+    <div className="flex h-full min-h-[360px] flex-col p-3">
+      <div className="mb-2 text-sm font-medium">Trends (last ~100)</div>
+      <div className="flex h-full min-w-0 flex-col gap-3">
+        <VSpark title="Temp (°C)" color="hsl(265 90% 70%)" dataKey="temp" data={data} />
+        <VSpark title="Pressure (hPa)" color="hsl(185 85% 60%)" dataKey="press" data={data} />
+        <VSpark title="Wave (m)" color="hsl(170 80% 55%)" dataKey="wave" data={data} />
+      </div>
+    </div>
+  )
+}
+
+function VSpark({
+  title,
+  color,
+  dataKey,
+  data,
+}: {
+  title: string
+  color: string
+  dataKey: "temp" | "press" | "wave"
+  data: { t: string; temp: number | null; press: number | null; wave: number | null }[]
+}) {
+  const cleaned = data.filter((d) => typeof d[dataKey] === "number") as any[]
+  return (
+    <div className="min-w-0 flex-1 rounded-lg border p-3">
+      <div className="mb-2 truncate text-xs text-muted-foreground">{title}</div>
+      <div className="relative h-[110px] md:h-[140px] lg:h-[calc(33%-12px)] xl:h-[calc(33%-12px)]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={cleaned}>
+            <XAxis dataKey="t" hide />
+            <YAxis hide domain={["dataMin", "dataMax"]} />
+            <Tooltip cursor={false} contentStyle={{ display: "none" }} />
+            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
