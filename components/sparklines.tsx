@@ -44,9 +44,21 @@ function VSpark({
   data: { t: string; temp: number | null; press: number | null; wave: number | null }[]
 }) {
   const cleaned = data.filter((d) => typeof d[dataKey] === "number") as any[]
+  // Ambil value-value statistik
+  const values = cleaned.map(d => d[dataKey]).filter(v => typeof v === "number")
+  const last = values.length ? values[values.length-1] : null
+  const avg = values.length ? (values.reduce((a,b)=>a+b,0)/values.length) : null
+  const min = values.length ? Math.min(...values) : null
+  const max = values.length ? Math.max(...values) : null
   return (
     <div className="min-w-0 flex-1 rounded-lg border border-black dark:border-border p-3">
       <div className="mb-2 truncate text-xs text-black dark:text-muted-foreground">{title}</div>
+      <div className="mb-2 flex gap-4 text-xs text-black dark:text-muted-foreground">
+        <span>Last: <b>{last !== null ? last.toFixed(2) : '-'}</b></span>
+        <span>Avg: <b>{avg !== null ? avg.toFixed(2) : '-'}</b></span>
+        <span>Min: <b>{min !== null ? min.toFixed(2) : '-'}</b></span>
+        <span>Max: <b>{max !== null ? max.toFixed(2) : '-'}</b></span>
+      </div>
       <div className="relative h-[110px] md:h-[140px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={cleaned}>

@@ -8,8 +8,10 @@
   );
   background-size: 200% 100%;
   transform: translate3d(0, 0, 0);
-  animation: waveSlide calc(var(--wave-speed) * 2) linear infinite;
+  animation: waveSlide var(--wave-speed) linear infinite;
   will-change: background-position;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 .wave::before,
 .wave::after {
@@ -19,32 +21,39 @@
   background: radial-gradient(
     ellipse at 50% 150%, 
     var(--wave-color) 0%, 
-    color-mix(in oklch, var(--wave-color), transparent 40%) 30%,
+    color-mix(in srgb, var(--wave-color) 60%, transparent) 40%,
     transparent 70%
   );
   opacity: 0.8;
   transform: translate3d(0, 0, 0);
   animation: waveBob var(--wave-speed) cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite;
   will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 .wave::after {
-  animation-delay: calc(var(--wave-speed) / 3);
+  animation-delay: calc(var(--wave-speed) / 2);
   opacity: 0.5;
+  filter: blur(1px);
 }
 
 @keyframes waveSlide {
-  0% {
+  from {
     background-position: 0% 0;
   }
-  100% {
+  to {
     background-position: -200% 0;
   }
 }
+
 @keyframes waveBob {
   0%, 100% {
-    transform: translateY(calc(var(--wave-height) * -0.8));
+    transform: translateY(calc(var(--wave-height) * -1));
+  }
+  25%, 75% {
+    transform: translateY(0);
   }
   50% {
-    transform: translateY(calc(var(--wave-height) * 0.8));
+    transform: translateY(calc(var(--wave-height)));
   }
 }

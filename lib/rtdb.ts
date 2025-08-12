@@ -2,9 +2,17 @@ import type { TelemetryFeed, TelemetryNode } from "@/types/asv"
 import { parseTimestamp } from "./parse"
 import { clamp } from "./math"
 
-// Menyimpan posisi terakhir yang valid
-let lastValidLat: number | null = null
-let lastValidLon: number | null = null
+// Menyimpan posisi terakhir yang valid untuk setiap session
+const lastValidCoordinates = {
+  lat: null as number | null,
+  lon: null as number | null,
+  timestamp: null as number | null
+}
+
+// Helper untuk validasi koordinat
+function isValidCoordinate(coord: number | null): boolean {
+  return coord !== null && coord !== 0 && !isNaN(coord)
+}
 
 // Normalize RTDB snapshot value (object keyed by push IDs) into a feed.
 export function normalizeFeed(raw: Record<string, any>): TelemetryFeed {
@@ -23,17 +31,23 @@ export function normalizeFeed(raw: Record<string, any>): TelemetryFeed {
       const pressure_hpa = sensors?.pressure_hpa ?? null;
       const temp_c = sensors?.temp_c ?? null;
       const alt_m = sensors?.alt_m ?? null;
-      // lat/lon diambil dari gps, gunakan nilai terakhir yang valid jika bernilai 0
+      // lat/lon diambil dari gps dengan validasi
       const rawLat = typeof gps.lat === "number" ? gps.lat : null;
       const rawLon = typeof gps.lng === "number" ? gps.lng : (typeof gps.lon === "number" ? gps.lon : null);
       
-      // Update posisi terakhir yang valid jika data baru tidak nol
-      if (rawLat !== null && rawLat !== 0) lastValidLat = rawLat;
-      if (rawLon !== null && rawLon !== 0) lastValidLon = rawLon;
+      // Update koordinat terakhir yang valid jika data baru valid
+      const currentTimestamp = ts?.getTime() ?? 0;
+      if (isValidCoordinate(rawLat) && isValidCoordinate(rawLon)) {
+        if (currentTimestamp >= (lastValidCoordinates.timestamp ?? 0)) {
+          lastValidCoordinates.lat = rawLat;
+          lastValidCoordinates.lon = rawLon;
+          lastValidCoordinates.timestamp = currentTimestamp;
+        }
+      }
       
-      // Gunakan posisi terakhir yang valid jika data baru nol
-      const lat = (rawLat === 0 || rawLat === null) ? lastValidLat : rawLat;
-      const lon = (rawLon === 0 || rawLon === null) ? lastValidLon : rawLon;
+      // Gunakan koordinat terakhir yang valid jika data baru tidak valid
+      const lat = isValidCoordinate(rawLat) ? rawLat : lastValidCoordinates.lat;
+      const lon = isValidCoordinate(rawLon) ? rawLon : lastValidCoordinates.lon;
       
       // speed_kn diambil dari gps jika ada
       const speed_kn = typeof gps.speed_knots === "number" ? gps.speed_knots : null;
