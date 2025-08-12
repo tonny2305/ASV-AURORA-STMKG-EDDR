@@ -44,7 +44,7 @@ function VSpark({
   data: { t: string; temp: number | null; press: number | null; wave: number | null }[]
 }) {
   const cleaned = data.filter((d) => typeof d[dataKey] === "number") as any[]
-  // Ambil value-value statistik
+  
   const values = cleaned.map(d => d[dataKey]).filter(v => typeof v === "number")
   const last = values.length ? values[values.length-1] : null
   const avg = values.length ? (values.reduce((a,b)=>a+b,0)/values.length) : null
@@ -92,7 +92,7 @@ function VSpark({
               }}
             />
             <Line
-              type="basis"
+             type= "basis"
               dataKey={dataKey}
               stroke={colorDark}
               strokeWidth={2}
